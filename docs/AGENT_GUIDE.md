@@ -15,15 +15,19 @@ You are connected to a **gateway**, not a single tool server. Behind it sits a r
 
 Both write the same registry file, so they never conflict: a CLI change is pushed to you via `tools/list_changed`, and your `plugin_*` calls are visible to `mcpctl list` instantly.
 
-## Connecting this gateway to Claude Code
+## Connecting this gateway to a client
 
 ```sh
-# stdio (Claude Code spawns the gateway):
+# Claude Code, stdio (Claude Code spawns the gateway):
 claude mcp add mcp-controller -- npx -y mcp-tools-controller serve
 
-# Streamable HTTP (shared long-running gateway):
+# Claude Code, Streamable HTTP (shared long-running gateway):
 npx -y mcp-tools-controller serve --http --port 3000   # keep running
 claude mcp add --transport http mcp-controller http://127.0.0.1:3000/mcp
+
+# Claude Desktop (no CLI exists — this edits claude_desktop_config.json,
+# merging with existing entries; user must fully restart Claude Desktop):
+npx -y mcp-tools-controller install claude-desktop
 ```
 
 ## Management tools

@@ -18,6 +18,25 @@ That's it. Claude Code now sees every plugin's tools through one server, plus th
 npx -y mcp-tools-controller install claude --print
 ```
 
+## Import into Claude Desktop (one command)
+
+Claude Desktop has no CLI for registering MCP servers, so the controller edits its `claude_desktop_config.json` for you (merging with whatever is already there):
+
+```sh
+npx -y mcp-tools-controller install claude-desktop          # writes the config
+npx -y mcp-tools-controller install claude-desktop --print  # just show the JSON snippet + path
+```
+
+Then **fully restart Claude Desktop** (quit it from the tray/menu bar — closing the window is not enough). The config file lives at:
+
+| OS | Path |
+| --- | --- |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `$XDG_CONFIG_HOME/Claude/claude_desktop_config.json` (default `~/.config/Claude/...`) |
+
+> Claude Desktop launches MCP servers with a minimal `PATH`. If it fails to start the gateway, replace `"command": "npx"` in the entry with the absolute path from `which npx` (or `which node`).
+
 ## Architecture
 
 ```
@@ -80,6 +99,7 @@ Installed from npm, replace `node dist/cli.js` with `mcpctl` (global install) or
 | `mcpctl serve [--http] [--port N] [--host H] [--no-management]` | Start the gateway. |
 | `mcpctl import <.mcp.json>` | Bulk-import from a Claude Code config (same `{command, args, env}` shape). |
 | `mcpctl install claude [--http] [--port N] [--print]` | Print/run the Claude Code import command. |
+| `mcpctl install claude-desktop [--print]` | Write (or print) the `claude_desktop_config.json` entry for Claude Desktop. |
 | `mcpctl logs [-n 50]` | Show recent audit log entries. |
 
 Every command accepts a global `--registry <path>`; otherwise the registry resolves to `$MCP_CONTROLLER_HOME/plugins.json`, then a project-local `./.mcp-controller/plugins.json` (if present), then `~/.mcp-controller/plugins.json`.

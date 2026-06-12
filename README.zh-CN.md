@@ -18,6 +18,25 @@ claude mcp add mcp-controller -- npx -y mcp-tools-controller serve
 npx -y mcp-tools-controller install claude --print
 ```
 
+## 一键导入 Claude Desktop
+
+Claude Desktop 没有注册 MCP server 的命令行,所以由本工具直接代写它的 `claude_desktop_config.json`(与已有条目合并,不会覆盖其它配置):
+
+```sh
+npx -y mcp-tools-controller install claude-desktop          # 直接写入配置
+npx -y mcp-tools-controller install claude-desktop --print  # 只打印 JSON 片段和路径
+```
+
+写入后**彻底重启 Claude Desktop**(从托盘/菜单栏退出,只关窗口不生效)。配置文件位置:
+
+| 系统 | 路径 |
+| --- | --- |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `$XDG_CONFIG_HOME/Claude/claude_desktop_config.json`(默认 `~/.config/Claude/...`) |
+
+> Claude Desktop 以极简 `PATH` 启动 MCP server,若它找不到 `npx`,把条目里的 `"command": "npx"` 换成 `which npx`(或 `which node`)输出的绝对路径。
+
 ## 架构
 
 ```
@@ -77,6 +96,7 @@ node dist/cli.js add other -- npx -y some-mcp-server
 | `mcpctl serve [--http] [--port N] [--no-management]` | 启动聚合网关 |
 | `mcpctl import <.mcp.json>` | 从 Claude Code 配置批量导入(同款 `{command, args, env}` 结构) |
 | `mcpctl install claude [--http] [--print]` | 打印/执行 Claude Code 一键导入命令 |
+| `mcpctl install claude-desktop [--print]` | 写入(或打印)Claude Desktop 的 `claude_desktop_config.json` 条目 |
 | `mcpctl logs [-n 50]` | 查看最近的审计日志 |
 
 所有命令支持全局 `--registry <path>`;否则按 `$MCP_CONTROLLER_HOME` → 项目本地 `./.mcp-controller/plugins.json`(存在时)→ `~/.mcp-controller/plugins.json` 解析。

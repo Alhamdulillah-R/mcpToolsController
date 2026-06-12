@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdirSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -369,13 +371,19 @@ program
 
 program
   .command("install")
-  .description("Print or run the command that imports this gateway into a client (currently: claude)")
-  .argument("<client>", "Target client, e.g. 'claude' for Claude Code")
-  .option("--http", "Use the Streamable HTTP transport instead of stdio")
+  .description("Import this gateway into a client: 'claude' (Claude Code CLI) or 'claude-desktop' (writes claude_desktop_config.json)")
+  .argument("<client>", "Target client: claude | claude-desktop")
+  .option("--http", "Use the Streamable HTTP transport instead of stdio (claude only)")
   .option("--port <port>", "HTTP port (with --http)", "3000")
-  .option("--print", "Print the command instead of executing it")
-  .action((client: string, opts) => {
-    if (client !== "claude") fail(`Unsupported client '${client}'. Supported: claude`);
+  .option("--print", "Print the command/config instead of applying it")
+  .action(async (client: string, opts) => {
+    if (client === "claude-desktop") {
+      await installClaudeDesktop(Boolean(opts.print));
+      return;
+    }
+    if (client !== "claude") {
+      fail(`Unsupported client '${client}'. Supported: claude, claude-desktop`);
+    }
     const opts2 = program.opts<GlobalOpts>();
     const registryFlag = opts2.registry ? ` --registry ${opts2.registry}` : "";
 
@@ -407,11 +415,79 @@ program
 
 /** How to launch this same CLI: npx for npm installs, absolute node path for checkouts. */
 function selfInvocation(): string {
+  const [command, ...args] = selfCommandParts();
+  return [command, ...args].join(" ");
+}
+
+/** Same as selfInvocation(), but as {command, args} for JSON config files. */
+function selfCommandParts(): string[] {
   const self = fileURLToPath(import.meta.url);
   if (self.includes(`${path.sep}node_modules${path.sep}`)) {
-    return "npx -y mcp-tools-controller";
+    return ["npx", "-y", "mcp-tools-controller"];
   }
-  return `node ${self}`;
+  return [process.execPath, self];
+}
+
+/**
+ * Claude Desktop has no CLI to register MCP servers, so we edit its
+ * claude_desktop_config.json directly (merging with existing entries).
+ */
+async function installClaudeDesktop(printOnly: boolean): Promise<void> {
+  const opts = program.opts<GlobalOpts>();
+  const [command, ...baseArgs] = selfCommandParts();
+  const args = [
+    ...baseArgs,
+    ...(opts.registry ? ["--registry", path.resolve(opts.registry)] : []),
+    "serve",
+  ];
+  // Claude Desktop only launches stdio servers from its config file.
+  const entry = { command, args };
+
+  const configPath = claudeDesktopConfigPath();
+  const snippet = JSON.stringify({ mcpServers: { "mcp-controller": entry } }, null, 2);
+
+  if (printOnly) {
+    process.stdout.write(
+      `Merge this into your Claude Desktop config, then fully restart Claude Desktop:\n\n` +
+        `  ${configPath}\n\n${snippet}\n`,
+    );
+    return;
+  }
+
+  let config: { mcpServers?: Record<string, unknown> } = {};
+  try {
+    config = JSON.parse(await readFile(configPath, "utf8"));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      fail(
+        `Cannot parse ${configPath}: ${(err as Error).message}\n` +
+          `Fix the file or use --print to get the snippet for manual editing.`,
+      );
+    }
+  }
+  config.mcpServers = { ...(config.mcpServers ?? {}), "mcp-controller": entry };
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+  process.stdout.write(
+    `Added 'mcp-controller' to ${configPath}\n` +
+      `Now fully restart Claude Desktop (quit from the tray/menu bar, not just close the window).\n` +
+      (path.isAbsolute(command)
+        ? ""
+        : `Note: Claude Desktop launches servers with a minimal PATH; if it cannot find '${command}', ` +
+          `replace it in the config with its absolute path (the output of 'which ${command}').\n`),
+  );
+}
+
+function claudeDesktopConfigPath(): string {
+  const home = homedir();
+  switch (process.platform) {
+    case "darwin":
+      return path.join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json");
+    case "win32":
+      return path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "Claude", "claude_desktop_config.json");
+    default:
+      return path.join(process.env.XDG_CONFIG_HOME ?? path.join(home, ".config"), "Claude", "claude_desktop_config.json");
+  }
 }
 
 function claudeOnPath(): boolean {
