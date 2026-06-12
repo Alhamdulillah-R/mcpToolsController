@@ -27,6 +27,15 @@ npx -y mcp-tools-controller install claude-desktop          # writes the config
 npx -y mcp-tools-controller install claude-desktop --print  # just show the JSON snippet + path
 ```
 
+Claude Desktop can only spawn stdio servers — but that doesn't stop it from sharing a long-running HTTP gateway with your other clients. With `--http`, the config entry spawns the built-in `connect` bridge instead of a private gateway:
+
+```sh
+npx -y mcp-tools-controller serve --http --port 3000          # the shared gateway, keep running
+npx -y mcp-tools-controller install claude-desktop --http --port 3000
+```
+
+The bridge (`mcpctl connect <url>`) pumps JSON-RPC verbatim between Desktop's stdio and the gateway's Streamable HTTP session, so hot-reload `tools/list_changed` notifications reach Claude Desktop, Claude Code, and every other client of the same gateway simultaneously.
+
 Then **fully restart Claude Desktop** (quit it from the tray/menu bar — closing the window is not enough). The config file lives at:
 
 | OS | Path |
@@ -99,7 +108,8 @@ Installed from npm, replace `node dist/cli.js` with `mcpctl` (global install) or
 | `mcpctl serve [--http] [--port N] [--host H] [--no-management]` | Start the gateway. |
 | `mcpctl import <.mcp.json>` | Bulk-import from a Claude Code config (same `{command, args, env}` shape). |
 | `mcpctl install claude [--http] [--port N] [--print]` | Print/run the Claude Code import command. |
-| `mcpctl install claude-desktop [--print]` | Write (or print) the `claude_desktop_config.json` entry for Claude Desktop. |
+| `mcpctl install claude-desktop [--http] [--port N] [--print]` | Write (or print) the `claude_desktop_config.json` entry for Claude Desktop. With `--http`, the entry uses the `connect` bridge to a shared gateway. |
+| `mcpctl connect <url> [--header K=V]` | stdio↔HTTP bridge: lets stdio-only clients (Claude Desktop) join a running HTTP gateway. |
 | `mcpctl logs [-n 50]` | Show recent audit log entries. |
 
 Every command accepts a global `--registry <path>`; otherwise the registry resolves to `$MCP_CONTROLLER_HOME/plugins.json`, then a project-local `./.mcp-controller/plugins.json` (if present), then `~/.mcp-controller/plugins.json`.

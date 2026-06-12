@@ -28,6 +28,11 @@ claude mcp add --transport http mcp-controller http://127.0.0.1:3000/mcp
 # Claude Desktop (no CLI exists — this edits claude_desktop_config.json,
 # merging with existing entries; user must fully restart Claude Desktop):
 npx -y mcp-tools-controller install claude-desktop
+
+# Claude Desktop sharing the long-running HTTP gateway (Desktop spawns the
+# built-in stdio<->HTTP bridge, so hot reloads reach it like any other client):
+npx -y mcp-tools-controller serve --http --port 3000   # keep running
+npx -y mcp-tools-controller install claude-desktop --http --port 3000
 ```
 
 ## Management tools

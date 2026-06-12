@@ -312,6 +312,19 @@ program
     log.info(`gateway ready on stdio (registry: ${registryPath})`);
   });
 
+// ---------------------------------------------------------------- connect (stdio<->http bridge)
+
+program
+  .command("connect")
+  .description("Bridge stdio to a running HTTP gateway (for clients that can only spawn stdio servers, e.g. Claude Desktop)")
+  .argument("<url>", "Streamable HTTP endpoint of the gateway, e.g. http://127.0.0.1:3000/mcp")
+  .option("--header <KEY=VALUE...>", "HTTP header to send (repeatable)", (v: string, p: string[]) => [...p, v], [] as string[])
+  .action(async (url: string, opts) => {
+    const { runStdioBridge } = await import("./bridge.js");
+    const headers = opts.header.length > 0 ? parseKeyValues(opts.header, "--header") : undefined;
+    await runStdioBridge(url, headers);
+  });
+
 // ---------------------------------------------------------------- import
 
 program
@@ -373,12 +386,12 @@ program
   .command("install")
   .description("Import this gateway into a client: 'claude' (Claude Code CLI) or 'claude-desktop' (writes claude_desktop_config.json)")
   .argument("<client>", "Target client: claude | claude-desktop")
-  .option("--http", "Use the Streamable HTTP transport instead of stdio (claude only)")
+  .option("--http", "Connect through a shared Streamable HTTP gateway instead of spawning a private stdio one")
   .option("--port <port>", "HTTP port (with --http)", "3000")
   .option("--print", "Print the command/config instead of applying it")
   .action(async (client: string, opts) => {
     if (client === "claude-desktop") {
-      await installClaudeDesktop(Boolean(opts.print));
+      await installClaudeDesktop(Boolean(opts.print), opts.http ? Number(opts.port) : undefined);
       return;
     }
     if (client !== "claude") {
@@ -431,24 +444,37 @@ function selfCommandParts(): string[] {
 /**
  * Claude Desktop has no CLI to register MCP servers, so we edit its
  * claude_desktop_config.json directly (merging with existing entries).
+ *
+ * Claude Desktop can only launch stdio servers. Without --http the entry
+ * spawns a private gateway; with --http (httpPort set) it spawns the
+ * `connect` bridge so Desktop shares the long-running HTTP gateway with
+ * every other client.
  */
-async function installClaudeDesktop(printOnly: boolean): Promise<void> {
+async function installClaudeDesktop(printOnly: boolean, httpPort?: number): Promise<void> {
   const opts = program.opts<GlobalOpts>();
   const [command, ...baseArgs] = selfCommandParts();
-  const args = [
-    ...baseArgs,
-    ...(opts.registry ? ["--registry", path.resolve(opts.registry)] : []),
-    "serve",
-  ];
-  // Claude Desktop only launches stdio servers from its config file.
+  const args =
+    httpPort !== undefined
+      ? [...baseArgs, "connect", `http://127.0.0.1:${httpPort}/mcp`]
+      : [
+          ...baseArgs,
+          ...(opts.registry ? ["--registry", path.resolve(opts.registry)] : []),
+          "serve",
+        ];
   const entry = { command, args };
+  const httpNote =
+    httpPort !== undefined
+      ? `This entry bridges to a shared HTTP gateway — keep it running:\n\n` +
+        `  ${selfInvocation()}${opts.registry ? ` --registry ${opts.registry}` : ""} serve --http --port ${httpPort}\n\n`
+      : "";
 
   const configPath = claudeDesktopConfigPath();
   const snippet = JSON.stringify({ mcpServers: { "mcp-controller": entry } }, null, 2);
 
   if (printOnly) {
     process.stdout.write(
-      `Merge this into your Claude Desktop config, then fully restart Claude Desktop:\n\n` +
+      httpNote +
+        `Merge this into your Claude Desktop config, then fully restart Claude Desktop:\n\n` +
         `  ${configPath}\n\n${snippet}\n`,
     );
     return;
@@ -470,6 +496,7 @@ async function installClaudeDesktop(printOnly: boolean): Promise<void> {
   await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
   process.stdout.write(
     `Added 'mcp-controller' to ${configPath}\n` +
+      httpNote +
       `Now fully restart Claude Desktop (quit from the tray/menu bar, not just close the window).\n` +
       (path.isAbsolute(command)
         ? ""

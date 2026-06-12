@@ -27,6 +27,15 @@ npx -y mcp-tools-controller install claude-desktop          # 直接写入配置
 npx -y mcp-tools-controller install claude-desktop --print  # 只打印 JSON 片段和路径
 ```
 
+Claude Desktop 只能拉起 stdio 子进程——但这不妨碍它与其它客户端**共享同一个常驻 HTTP 网关**。加 `--http` 后,写入的条目会拉起内置的 `connect` 桥而非私有网关:
+
+```sh
+npx -y mcp-tools-controller serve --http --port 3000          # 共享网关,保持运行
+npx -y mcp-tools-controller install claude-desktop --http --port 3000
+```
+
+桥(`mcpctl connect <url>`)在 Desktop 的 stdio 与网关的 Streamable HTTP 会话之间原样转发 JSON-RPC,热更新的 `tools/list_changed` 通知会同时到达 Claude Desktop、Claude Code 和该网关的所有其它客户端。
+
 写入后**彻底重启 Claude Desktop**(从托盘/菜单栏退出,只关窗口不生效)。配置文件位置:
 
 | 系统 | 路径 |
@@ -96,7 +105,8 @@ node dist/cli.js add other -- npx -y some-mcp-server
 | `mcpctl serve [--http] [--port N] [--no-management]` | 启动聚合网关 |
 | `mcpctl import <.mcp.json>` | 从 Claude Code 配置批量导入(同款 `{command, args, env}` 结构) |
 | `mcpctl install claude [--http] [--print]` | 打印/执行 Claude Code 一键导入命令 |
-| `mcpctl install claude-desktop [--print]` | 写入(或打印)Claude Desktop 的 `claude_desktop_config.json` 条目 |
+| `mcpctl install claude-desktop [--http] [--port N] [--print]` | 写入(或打印)Claude Desktop 配置条目;`--http` 时条目走 `connect` 桥共享网关 |
+| `mcpctl connect <url> [--header K=V]` | stdio↔HTTP 桥:让只支持 stdio 的客户端(Claude Desktop)接入运行中的 HTTP 网关 |
 | `mcpctl logs [-n 50]` | 查看最近的审计日志 |
 
 所有命令支持全局 `--registry <path>`;否则按 `$MCP_CONTROLLER_HOME` → 项目本地 `./.mcp-controller/plugins.json`(存在时)→ `~/.mcp-controller/plugins.json` 解析。

@@ -3,7 +3,7 @@
  * paths (external CLI write + built-in management tool), failure handling, and
  * the audit trail. Exits non-zero on the first failure.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -153,8 +153,54 @@ async function main(): Promise<void> {
 
   await client.close();
 
-  // 8. Audit trail
-  console.log("\n[8] audit trail");
+  // 8. stdio<->HTTP bridge (the Claude Desktop path for a shared gateway)
+  console.log("\n[8] connect bridge: stdio client -> bridge -> HTTP gateway");
+  const port = 30000 + Math.floor(Math.random() * 10000);
+  const httpGateway = spawn(
+    process.execPath,
+    [cliJs, "--registry", registry, "serve", "--http", "--port", String(port)],
+    { stdio: ["ignore", "ignore", "pipe"] },
+  );
+  try {
+    await new Promise((r) => setTimeout(r, 1200)); // let it bind + connect plugins
+
+    const bridged = new Client({ name: "e2e-bridge-client", version: "1.0.0" });
+    bridged.setNotificationHandler(ToolListChangedNotificationSchema, () => {
+      nextListChanged?.();
+    });
+    await bridged.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [cliJs, "connect", `http://127.0.0.1:${port}/mcp`],
+        stderr: "pipe",
+      }),
+    );
+    const bridgedList = await bridged.listTools();
+    check(
+      "tools visible through the bridge",
+      bridgedList.tools.some((t) => t.name === "demo__add"),
+      bridgedList.tools.map((t) => t.name).join(","),
+    );
+    const bridgedSum = await bridged.callTool({ name: "demo__add", arguments: { a: 4, b: 6 } });
+    check("tool call through the bridge", textOf(bridgedSum).trim() === "10");
+
+    // Hot reload must traverse gateway SSE -> bridge -> stdio client.
+    const changedViaBridge = waitForListChanged(8_000);
+    cli("add", "demo3", "--", process.execPath, demoJs);
+    await changedViaBridge;
+    const bridgedList2 = await bridged.listTools();
+    check(
+      "list_changed propagates through the bridge",
+      bridgedList2.tools.some((t) => t.name === "demo3__echo"),
+    );
+    cli("remove", "demo3");
+    await bridged.close();
+  } finally {
+    httpGateway.kill("SIGTERM");
+  }
+
+  // 9. Audit trail
+  console.log("\n[9] audit trail");
   const audit = readFileSync(auditLog, "utf8");
   for (const event of ["plugin.add", "tool.call", "plugin.remove", "plugin.connect"]) {
     check(`audit log contains ${event}`, audit.includes(`"event":"${event}"`));
