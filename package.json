@@ -1,0 +1,47 @@
+{
+  "name": "mcp-tools-controller",
+  "version": "0.1.0",
+  "description": "MCP plugin manager and aggregation gateway: treat every MCP server as a plugin, validate it on connect, manage it from the CLI or from the model itself, and expose all plugin tools through one hot-reloading MCP endpoint.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "mcpctl": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "README.zh-CN.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "gateway",
+    "aggregator",
+    "plugin-manager",
+    "claude",
+    "claude-code"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js serve",
+    "serve:http": "node dist/cli.js serve --http",
+    "demo": "node dist/examples/demo-server.js",
+    "e2e": "npm run build && node dist/e2e/run-e2e.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^14.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

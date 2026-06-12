@@ -1,0 +1,45 @@
+# Task (https://taskfile.dev) is the canonical build/run entrypoint.
+# Every task wraps an npm script, so `npm run <name>` works as a fallback
+# if Task is not installed.
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install dependencies
+    cmds:
+      - npm install
+
+  build:
+    desc: Compile TypeScript to dist/
+    cmds:
+      - npm run build
+
+  dev:
+    desc: Compile in watch mode
+    cmds:
+      - npm run dev
+
+  start:
+    desc: Start the aggregation gateway on stdio (for MCP clients)
+    cmds:
+      - npm run start
+
+  serve:http:
+    desc: Start the aggregation gateway as a Streamable HTTP server (port 3000)
+    cmds:
+      - npm run serve:http
+
+  demo:
+    desc: Run the bundled demo MCP server (a sample plugin)
+    cmds:
+      - npm run demo
+
+  e2e:
+    desc: Build and run the end-to-end test suite
+    cmds:
+      - npm run e2e
