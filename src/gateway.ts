@@ -1,9 +1,19 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
+  ErrorCode,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  McpError,
+  ReadResourceRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import {
+  GUIDE_RESOURCE_URI,
+  PLUGINS_RESOURCE_URI,
+  buildServerInstructions,
+  loadAgentGuide,
+} from "./agent-instructions.js";
 import { log } from "./logger.js";
 import {
   handleManagementTool,
@@ -36,8 +46,12 @@ export function createGatewayServer(
 ): { server: Server; dispose: () => void } {
   const server = new Server(
     { name: GATEWAY_NAME, version: GATEWAY_VERSION },
-    // listChanged is required, otherwise sendToolListChanged() throws.
-    { capabilities: { tools: { listChanged: true } } },
+    {
+      // listChanged is required, otherwise sendToolListChanged() throws.
+      capabilities: { tools: { listChanged: true }, resources: {} },
+      // Delivered to the model on initialize so it learns it can self-manage MCP.
+      instructions: buildServerInstructions(opts.management),
+    },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -46,6 +60,44 @@ export function createGatewayServer(
       ...pm.getTools().map(toToolListEntry),
     ],
   }));
+
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: [
+      {
+        uri: GUIDE_RESOURCE_URI,
+        name: "Agent guide",
+        description: "How to manage MCP plugins through this gateway (tools, schemas, examples, error handling).",
+        mimeType: "text/markdown",
+      },
+      {
+        uri: PLUGINS_RESOURCE_URI,
+        name: "Plugin status",
+        description: "Live JSON snapshot of every registered plugin: state, tools, last validation, last error.",
+        mimeType: "application/json",
+      },
+    ],
+  }));
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+    const { uri } = req.params;
+    if (uri === GUIDE_RESOURCE_URI) {
+      return {
+        contents: [{ uri, mimeType: "text/markdown", text: await loadAgentGuide() }],
+      };
+    }
+    if (uri === PLUGINS_RESOURCE_URI) {
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "application/json",
+            text: JSON.stringify({ plugins: pm.getStatus() }, null, 2),
+          },
+        ],
+      };
+    }
+    throw new McpError(ErrorCode.InvalidParams, `Unknown resource: ${uri}`);
+  });
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args } = req.params;

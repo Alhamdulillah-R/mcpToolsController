@@ -148,7 +148,7 @@ npx -y mcp-tools-controller serve --http --port 3000   # 保持运行
 claude mcp add --transport http mcp-controller http://127.0.0.1:3000/mcp
 ```
 
-之后在 Claude Code 里 `/mcp` 即可看到聚合的全部工具。让模型调用 `plugin_list` 查看插件健康状况,或在对话中用 `plugin_add` 现场接入新的 MCP server——详见[模型接入指南](./docs/AGENT_GUIDE.md)。
+之后在 Claude Code 里 `/mcp` 即可看到聚合的全部工具。模型**无需被投喂任何文档**即可获知自管理能力:网关在 MCP `initialize` 响应里下发自管理须知,并把完整[模型接入指南](./docs/AGENT_GUIDE.md)和实时插件状态作为 MCP 资源提供(`mcp-controller://agent-guide`、`mcp-controller://plugins`)。让模型调用 `plugin_list` 查看插件健康状况,或在对话中用 `plugin_add` 现场接入新的 MCP server。
 
 ## 开发
 

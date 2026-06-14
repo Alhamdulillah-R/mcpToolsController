@@ -37,6 +37,12 @@ function cli(...args: string[]): string {
   });
 }
 
+function resourceText(result: { contents: unknown[] }): string {
+  return result.contents
+    .map((c) => (c as { text?: string }).text ?? "")
+    .join("");
+}
+
 function textOf(result: unknown): string {
   const content = (result as { content?: Array<{ type: string; text?: string }> }).content ?? [];
   return content
@@ -101,6 +107,41 @@ async function main(): Promise<void> {
   );
   const demoAdd = list1.tools.find((t) => t.name === "demo__add");
   check("outputSchema passed through", demoAdd?.outputSchema !== undefined);
+
+  // 2b. Self-management capability delivered to the model
+  console.log("\n[2b] self-management capability (instructions + resources)");
+  const instructions = client.getInstructions() ?? "";
+  check("instructions delivered on initialize", instructions.length > 0);
+  check(
+    "instructions advertise self-management",
+    instructions.includes("plugin_add") && instructions.includes("tools/list_changed"),
+    instructions.slice(0, 80),
+  );
+  const resourceList = await client.listResources();
+  const resourceUris = resourceList.resources.map((r) => r.uri);
+  check(
+    "guide + plugins resources listed",
+    ["mcp-controller://agent-guide", "mcp-controller://plugins"].every((u) =>
+      resourceUris.includes(u),
+    ),
+    resourceUris.join(","),
+  );
+  const guideRes = await client.readResource({ uri: "mcp-controller://agent-guide" });
+  check("agent-guide resource readable", resourceText(guideRes).includes("plugin_add"));
+  const pluginsRes = await client.readResource({ uri: "mcp-controller://plugins" });
+  check(
+    "plugins resource is live JSON with demo",
+    JSON.parse(resourceText(pluginsRes) || "{}").plugins?.some(
+      (p: { name: string }) => p.name === "demo",
+    ) === true,
+  );
+  let unknownResourceRejected = false;
+  try {
+    await client.readResource({ uri: "mcp-controller://nope" });
+  } catch {
+    unknownResourceRejected = true;
+  }
+  check("unknown resource rejected without crashing", unknownResourceRejected);
 
   // 3. Proxied call with structured content
   console.log("\n[3] proxied tool call");

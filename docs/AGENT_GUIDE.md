@@ -2,6 +2,8 @@
 
 This document is written for AI models. If you are an AI agent connected to a server named `mcp-tools-controller` (or about to connect to one), this is your operating manual.
 
+> You don't have to be handed this file: a short version is delivered automatically in the MCP `initialize` response (`instructions`), and the full text is available as the resource `mcp-controller://agent-guide` (`resources/read`). A live JSON snapshot of plugin status is at `mcp-controller://plugins`.
+
 ## Mental model
 
 You are connected to a **gateway**, not a single tool server. Behind it sits a registry of **plugins** — independent MCP servers. The gateway validates plugins when they are added, proxies your tool calls to them, and lets you **rewire the plugin set at runtime**. Tools named `<plugin>__<tool>` (double underscore) belong to a plugin; tools named `plugin_*` are the gateway's own management tools.

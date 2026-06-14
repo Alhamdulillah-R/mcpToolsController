@@ -151,7 +151,7 @@ npx -y mcp-tools-controller serve --http --port 3000   # keep running
 claude mcp add --transport http mcp-controller http://127.0.0.1:3000/mcp
 ```
 
-Then in Claude Code, `/mcp` shows the `mcp-controller` server with all aggregated tools. Ask the model to call `plugin_list` to see plugin health, or `plugin_add` to wire in a new MCP server mid-conversation — see the [Agent Guide](./docs/AGENT_GUIDE.md), which is written to be pasted into a model's context.
+Then in Claude Code, `/mcp` shows the `mcp-controller` server with all aggregated tools. The model learns it can manage plugins itself **without being handed any docs**: the gateway delivers self-management instructions in the MCP `initialize` response, and serves the full [Agent Guide](./docs/AGENT_GUIDE.md) plus a live plugin-status snapshot as MCP resources (`mcp-controller://agent-guide`, `mcp-controller://plugins`). Ask the model to call `plugin_list` to see plugin health, or `plugin_add` to wire in a new MCP server mid-conversation.
 
 ## File formats
 

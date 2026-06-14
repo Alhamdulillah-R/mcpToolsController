@@ -27,5 +27,6 @@ Task (taskfile.dev) wraps npm scripts 1:1 — use either:
 - `src/registry.ts` — atomic save, directory watcher (debounce + self-write hash suppression)
 - `src/validator.ts` — plugin legitimacy check (handshake, capability, tool inventory)
 - `src/management-tools.ts` — built-in `plugin_*` MCP tools
+- `src/agent-instructions.ts` — self-management instructions injected via `initialize`, plus the `mcp-controller://agent-guide` / `mcp-controller://plugins` resources served by the gateway
 - `src/audit.ts` — JSONL audit logger; `src/paths.ts` — registry path resolution
 - `docs/AGENT_GUIDE.md` — model-facing manual; keep it in sync when management tools change
