@@ -4,15 +4,25 @@
   "description": "MCP plugin manager and aggregation gateway: treat every MCP server as a plugin, validate it on connect, manage it from the CLI or from the model itself, and expose all plugin tools through one hot-reloading MCP endpoint.",
   "type": "module",
   "license": "MIT",
+  "author": "mignon rex <rexdpbm@gmail.com>",
+  "homepage": "https://github.com/Alhamdulillah-R/mcpToolsController#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alhamdulillah-R/mcpToolsController.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Alhamdulillah-R/mcpToolsController/issues"
+  },
   "bin": {
     "mcpctl": "dist/cli.js"
   },
   "main": "dist/cli.js",
   "files": [
-    "dist",
+    "dist/**/*.js",
     "docs",
     "README.md",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18"
