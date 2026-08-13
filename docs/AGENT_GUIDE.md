@@ -85,6 +85,18 @@ Input: `{ "name": "github" }` to reconnect one plugin (use after it crashed or i
 
 Input: `{ "name": "github" }`. Re-runs the legitimacy check and returns the report. Use it when a plugin behaves oddly and you want fresh evidence before deciding to reload or remove it.
 
+### plugin_tool_schema
+
+Input: `{ "name": "memory-recall__memory_source_status" }`. Returns the exact downstream `inputSchema`, `outputSchema`, annotations, a compact contract, and a minimal argument example. Use it when the host renders a dynamic tool as `Record<string, unknown>` or after an `INVALID_ARGUMENT` response.
+
+Every aggregated tool description also includes a compact contract such as:
+
+```text
+Input: { namespace:string, path?:string, source_id?:string }; one of: path | source_id | ingestion_id
+```
+
+The JSON Schema itself remains unchanged and is still passed through verbatim.
+
 ## The verification ritual (hot update)
 
 After any mutation (`plugin_add`, `plugin_remove`, enable/disable/reload):
@@ -102,6 +114,7 @@ If your client runtime refreshes tools automatically on `list_changed`, step 2 h
 | Tool result with `isError: true`, text says plugin is `not available` / `state: error` | The plugin crashed or its process died; the gateway is fine | Call `plugin_reload` with that plugin's name, then retry the tool |
 | `plugin_add` returns `isError` with a validation message | The target is not a working MCP server (bad command, no tools capability, handshake timeout) | Fix the command/url; do not retry the identical input |
 | Tool result `isError` saying `Unknown tool` | The tool list changed since you last looked | Call `tools/list` (or `plugin_list`) and use a current name |
+| Tool result contains `"code": "INVALID_ARGUMENT"` | The gateway rejected the call before sending it downstream | Apply `suggestion`, inspect `allowedFields` / `requiredOneOf`, or call `plugin_tool_schema` |
 | A plugin's tools vanished from `tools/list` | It was removed/disabled, or it crashed and is in backoff reconnect | `plugin_list` to see its state; `plugin_reload` if `error` |
 
 A failing plugin never takes down the gateway. Other plugins' tools keep working.

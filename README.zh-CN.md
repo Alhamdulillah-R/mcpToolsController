@@ -127,7 +127,7 @@ node dist/cli.js add other -- npx -y some-mcp-server
 两条路径,同一机制:
 
 - **shell**:任何 `mcpctl add/remove/enable/disable` 原子写入注册表;运行中的网关监听注册表目录,将期望状态与实际连接做 diff,只连/断发生变化的插件。
-- **模型**:网关内置 `plugin_add`、`plugin_remove`、`plugin_enable`、`plugin_disable`、`plugin_reload`、`plugin_validate`、`plugin_list` 管理工具,全部写穿到同一个注册表文件。
+- **模型**:网关内置 `plugin_add`、`plugin_remove`、`plugin_enable`、`plugin_disable`、`plugin_reload`、`plugin_validate`、`plugin_list`、`plugin_tool_schema` 管理工具。前七个写穿到同一个注册表文件;`plugin_tool_schema` 只读,用于在 host 未正确显示动态 schema 时读取完整 contract 和调用示例。
 
 无论哪条路径,网关都会向**所有**已连接客户端广播 `notifications/tools/list_changed`,客户端随即重新拉取 `tools/list`。下游热更新同样向上传播:插件自己在运行时变更工具列表,网关会重新拉取并继续向上通知。
 

@@ -73,10 +73,10 @@ async function main(): Promise<void> {
   // 1. CLI add + validation
   console.log("\n[1] CLI add with validation");
   const addOut = cli("add", "demo", "--", process.execPath, demoJs);
-  check("add prints validation summary", addOut.includes("3 tool(s)"), addOut);
+  check("add prints validation summary", addOut.includes("4 tool(s)"), addOut);
   const reg1 = JSON.parse(readFileSync(registry, "utf8"));
   check("registry has validation.ok", reg1.plugins.demo?.validation?.ok === true);
-  check("registry records 3 tools", reg1.plugins.demo?.validation?.toolCount === 3);
+  check("registry records 4 tools", reg1.plugins.demo?.validation?.toolCount === 4);
 
   // 2. Connect a client to the gateway over stdio
   console.log("\n[2] gateway aggregation over stdio");
@@ -107,6 +107,12 @@ async function main(): Promise<void> {
   );
   const demoAdd = list1.tools.find((t) => t.name === "demo__add");
   check("outputSchema passed through", demoAdd?.outputSchema !== undefined);
+  const sourceStatus = list1.tools.find((t) => t.name === "demo__source_status");
+  check(
+    "compact input contract is appended to dynamic tool description",
+    sourceStatus?.description?.includes("namespace:string") === true &&
+      sourceStatus?.description?.includes("source_id?:string") === true,
+  );
 
   // 2b. Self-management capability delivered to the model
   console.log("\n[2b] self-management capability (instructions + resources)");
@@ -150,6 +156,26 @@ async function main(): Promise<void> {
   check(
     "structuredContent passed through",
     JSON.stringify((sum as { structuredContent?: unknown }).structuredContent) === '{"sum":5}',
+  );
+
+  const schemaRes = await client.callTool({
+    name: "plugin_tool_schema",
+    arguments: { name: "demo__source_status" },
+  });
+  check(
+    "plugin_tool_schema exposes exact schema and example",
+    textOf(schemaRes).includes('"inputSchema"') && textOf(schemaRes).includes('"namespace"'),
+    textOf(schemaRes),
+  );
+  const invalidArgs = await client.callTool({
+    name: "demo__source_status",
+    arguments: { namespace: "demo", source_path: "D:\\trace.json" },
+  });
+  check(
+    "invalid arguments include source_path -> path suggestion",
+    (invalidArgs as { isError?: boolean }).isError === true &&
+      textOf(invalidArgs).includes('"suggestion": "path"'),
+    textOf(invalidArgs),
   );
 
   // 4. Hot reload via external CLI write

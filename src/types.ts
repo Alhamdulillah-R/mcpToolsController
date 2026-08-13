@@ -57,6 +57,7 @@ export interface PluginStatus {
   enabled: boolean;
   toolCount: number;
   tools: string[];
+  namespacedTools: string[];
   error?: string;
   validation?: ValidationRecord;
 }

@@ -130,7 +130,7 @@ The resulting record — server name/version, negotiated protocol version, tool 
 Two paths, same mechanism:
 
 - **Shell**: any `mcpctl add/remove/enable/disable` writes the registry atomically. The running gateway watches the registry directory, diffs desired state against live connections, then connects/disconnects only what changed.
-- **Model**: the gateway exposes built-in management tools (`plugin_add`, `plugin_remove`, `plugin_enable`, `plugin_disable`, `plugin_reload`, `plugin_validate`, `plugin_list`). These write through to the same registry file.
+- **Model**: the gateway exposes built-in management tools (`plugin_add`, `plugin_remove`, `plugin_enable`, `plugin_disable`, `plugin_reload`, `plugin_validate`, `plugin_list`, `plugin_tool_schema`). These write through to the same registry file; `plugin_tool_schema` is read-only and exposes exact dynamic schemas when a host renders them poorly.
 
 Either way the gateway emits `notifications/tools/list_changed` to **every** connected client (all HTTP sessions, or the stdio client), which then re-fetches `tools/list`. Downstream hot updates propagate too: if a plugin changes its own tool list at runtime, the gateway re-fetches and notifies upward.
 

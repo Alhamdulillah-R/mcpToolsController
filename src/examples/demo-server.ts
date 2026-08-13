@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * Minimal demo MCP server used as the "first plugin" in the README and by the
- * end-to-end tests. Exposes three tools: echo, add (with an output schema, to
- * exercise structured-content pass-through), and now.
+ * end-to-end tests. Exposes four tools: echo, add, source_status, and now.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -38,6 +37,21 @@ server.registerTool(
       structuredContent: { sum },
     };
   },
+);
+
+server.registerTool(
+  "source_status",
+  {
+    description: "Inspect one source by path or source ID",
+    inputSchema: {
+      namespace: z.string(),
+      path: z.string().optional(),
+      source_id: z.string().optional(),
+    },
+  },
+  async ({ namespace, path, source_id }) => ({
+    content: [{ type: "text", text: JSON.stringify({ namespace, path, source_id }) }],
+  }),
 );
 
 server.registerTool(

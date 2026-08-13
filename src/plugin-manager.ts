@@ -14,6 +14,7 @@ import {
 } from "./registry.js";
 import { buildClientTransport } from "./transport.js";
 import { staticValidate, validatePlugin } from "./validator.js";
+import { buildToolExample, summarizeInputSchema, validateToolArguments } from "./tool-schema.js";
 import {
   NAMESPACE_SEPARATOR,
   type Actor,
@@ -139,9 +140,27 @@ export class PluginManager extends EventEmitter {
       enabled: conn.config.enabled,
       toolCount: conn.tools.length,
       tools: conn.tools.map((t) => t.originalName),
+      namespacedTools: conn.tools.map((t) => t.name),
       error: conn.lastError,
       validation: conn.config.validation,
     }));
+  }
+
+  /** Return the exact downstream schema plus a compact model-facing contract. */
+  getToolSchema(namespacedName: string): Record<string, unknown> | undefined {
+    const tool = this.getTools().find((candidate) => candidate.name === namespacedName);
+    if (!tool) return undefined;
+    return {
+      name: tool.name,
+      plugin: tool.pluginName,
+      originalName: tool.originalName,
+      description: tool.description,
+      contract: summarizeInputSchema(tool.inputSchema),
+      inputSchema: tool.inputSchema,
+      outputSchema: tool.outputSchema,
+      annotations: tool.annotations,
+      example: buildToolExample(tool.inputSchema),
+    };
   }
 
   async callTool(namespacedName: string, args: Record<string, unknown>): Promise<CallToolResult> {
@@ -164,6 +183,22 @@ export class PluginManager extends EventEmitter {
           `). Try plugin_reload with name '${pluginName}'.`,
       );
     }
+    const tool = conn.tools.find((candidate) => candidate.originalName === toolName);
+    if (!tool) {
+      return errorResult(
+        `Unknown tool '${namespacedName}'. Call plugin_list and use a current tool name.`,
+      );
+    }
+    const diagnostic = validateToolArguments(tool, args);
+    if (diagnostic) {
+      this.audit.log("tool.call", "gateway", {
+        plugin: pluginName,
+        ok: false,
+        detail: { tool: toolName, stage: "input-validation", errors: diagnostic.errors },
+      });
+      return jsonErrorResult(diagnostic);
+    }
+
     const startedAt = Date.now();
     try {
       const result = (await conn.client.callTool({
@@ -299,7 +334,7 @@ export class PluginManager extends EventEmitter {
     conn.state = "connecting";
     conn.closing = false;
 
-    const client = new Client({ name: "mcp-tools-controller", version: "0.1.0" });
+    const client = new Client({ name: "mcp-tools-controller", version: "0.2.0" });
     try {
       const transport = buildClientTransport(name, conn.config);
       await client.connect(transport);
@@ -455,4 +490,12 @@ function sameConnectionConfig(a: PluginConfig, b: PluginConfig): boolean {
 
 function errorResult(text: string): CallToolResult {
   return { isError: true, content: [{ type: "text", text }] };
+}
+
+function jsonErrorResult(value: unknown): CallToolResult {
+  return {
+    isError: true,
+    content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
+    structuredContent: value as Record<string, unknown>,
+  };
 }

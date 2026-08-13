@@ -22,9 +22,10 @@ import {
 } from "./management-tools.js";
 import type { PluginManager } from "./plugin-manager.js";
 import type { NamespacedTool } from "./types.js";
+import { summarizeInputSchema } from "./tool-schema.js";
 
 export const GATEWAY_NAME = "mcp-tools-controller";
-export const GATEWAY_VERSION = "0.1.0";
+export const GATEWAY_VERSION = "0.2.0";
 
 export interface GatewayOptions {
   /** Expose the built-in plugin_* management tools (default true). */
@@ -130,11 +131,12 @@ export function createGatewayServer(
 
 /** Pass downstream schemas through verbatim — no lossy conversion. */
 function toToolListEntry(tool: NamespacedTool): Tool {
+  const description = tool.description
+    ? `[${tool.pluginName}] ${tool.description}`
+    : `Tool '${tool.originalName}' from plugin '${tool.pluginName}'`;
   return {
     name: tool.name,
-    description: tool.description
-      ? `[${tool.pluginName}] ${tool.description}`
-      : `Tool '${tool.originalName}' from plugin '${tool.pluginName}'`,
+    description: `${description}\n\n${summarizeInputSchema(tool.inputSchema)}`,
     inputSchema: tool.inputSchema as Tool["inputSchema"],
     ...(tool.outputSchema ? { outputSchema: tool.outputSchema as Tool["outputSchema"] } : {}),
     ...(tool.annotations ? { annotations: tool.annotations as Tool["annotations"] } : {}),

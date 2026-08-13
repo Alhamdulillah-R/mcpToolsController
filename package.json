@@ -1,6 +1,6 @@
 {
   "name": "mcp-tools-controller",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP plugin manager and aggregation gateway: treat every MCP server as a plugin, validate it on connect, manage it from the CLI or from the model itself, and expose all plugin tools through one hot-reloading MCP endpoint.",
   "type": "module",
   "license": "MIT",

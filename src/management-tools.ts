@@ -17,6 +17,7 @@ export const MANAGEMENT_TOOL_NAMES = [
   "plugin_disable",
   "plugin_reload",
   "plugin_validate",
+  "plugin_tool_schema",
 ] as const;
 
 export function isManagementTool(name: string): boolean {
@@ -35,6 +36,22 @@ export function managementToolDefs(): Tool[] {
       description:
         "List all registered MCP plugins with their connection state, tool count, last validation result, and last error. Use this first to see what is available.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    },
+    {
+      name: "plugin_tool_schema",
+      description:
+        "Inspect one aggregated tool's exact downstream input/output schemas, compact argument contract, annotations, and a minimal call example. Use this when a client rendered the dynamic schema as a generic object or after INVALID_ARGUMENT.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Full aggregated tool name in '<plugin>__<tool>' form",
+          },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
     },
     {
       name: "plugin_add",
@@ -214,6 +231,17 @@ export async function handleManagementTool(
         const name = requireName(args);
         const validation = await pm.revalidatePlugin(name, "mcp-tool");
         return jsonResult({ plugin: name, validation });
+      }
+
+      case "plugin_tool_schema": {
+        const name = requireName(args);
+        const schema = pm.getToolSchema(name);
+        if (!schema) {
+          return errorResult(
+            `Unknown aggregated tool '${name}'. Call plugin_list to see current plugin tools.`,
+          );
+        }
+        return jsonResult(schema);
       }
 
       default:
